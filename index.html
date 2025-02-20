@@ -1,0 +1,185 @@
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Actor Video Generator</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap');
+        
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: linear-gradient(135deg, #6e8efb, #a777e3);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+            text-align: center;
+            width: 420px;
+            transition: transform 0.3s ease;
+        }
+
+        .container:hover {
+            transform: scale(1.02);
+        }
+
+        .logo {
+            width: 160px;
+            margin-bottom: 20px;
+        }
+
+        h2 {
+            font-weight: 600;
+            background: linear-gradient(90deg, #000, #6e8efb, #a777e3, #ff007f);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        textarea {
+            width: 100%;
+            height: 120px;
+            padding: 12px;
+            border: 2px solid #ccc;
+            border-radius: 8px;
+            resize: none;
+            font-size: 14px;
+            transition: border 0.3s ease;
+        }
+
+        textarea:focus {
+            border: 2px solid #6e8efb;
+            outline: none;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #6e8efb, #a777e3);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            font-size: 16px;
+            cursor: pointer;
+            border-radius: 8px;
+            margin-top: 15px;
+            transition: background 0.3s ease, transform 0.2s ease;
+        }
+
+        .btn:hover {
+            background: linear-gradient(135deg, #5a78d4, #9355cf);
+            transform: scale(1.05);
+        }
+
+        .btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        #status {
+            margin-top: 12px;
+            font-weight: bold;
+            color: #444;
+        }
+
+        #countdown {
+            font-size: 16px;
+            color: red;
+            font-weight: bold;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <img src="https://cdn.moontechnolabs.com/live/images/moon_new_logo.svg" alt="Logo" class="logo">
+        <h2>Convert <span style="color: #6e8efb;">Text</span> to <span style="color: #ff007f;">Video</span> with AI</h2>
+        <textarea id="scriptInput" placeholder="Type your script here..."></textarea>
+        <button class="btn" onclick="generateVideo()">Generate Video</button>
+        <p id="status"></p>
+        <p id="countdown"></p>
+        <button id="downloadBtn" class="btn" style="display: none;" disabled>Download Video</button>
+    </div>
+
+    <script>
+        let videoId = null;
+
+        function generateVideo() {
+            const script = document.getElementById("scriptInput").value;
+            document.getElementById("status").innerText = "Generating...";
+            document.getElementById("downloadBtn").style.display = "none";
+
+            fetch("/generate", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ script: script })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    document.getElementById("status").innerText = "❌ Error: " + data.error;
+                } else {
+                    videoId = data.video_id;
+                    document.getElementById("status").innerText = "✅ Video is ready! Preparing download...";
+                    enableDownloadButton();
+                }
+            })
+            .catch(error => {
+                document.getElementById("status").innerText = "❌ Error generating video.";
+                console.error("Error:", error);
+            });
+        }
+
+        function enableDownloadButton() {
+            const downloadBtn = document.getElementById("downloadBtn");
+            const countdown = document.getElementById("countdown");
+            
+            downloadBtn.style.display = "inline-block";
+            countdown.style.display = "block";
+            
+            let timeLeft = 10;
+            countdown.innerText = `Downloading in ${timeLeft} seconds...`;
+
+            const timer = setInterval(() => {
+                timeLeft--;
+                countdown.innerText = `Downloading in ${timeLeft} seconds...`;
+
+                if (timeLeft === 0) {
+                    clearInterval(timer);
+                    countdown.style.display = "none";
+                    downloadBtn.disabled = false;
+                    triggerDownload();
+                }
+            }, 1000);
+        }
+
+        function triggerDownload() {
+            fetch(`/retrieve?video_id=${videoId}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.video_url) {
+                    const a = document.createElement("a");
+                    a.href = data.video_url;
+                    a.download = "ai_generated_video.mp4";  // Forces the file to be saved
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                } else {
+                    document.getElementById("status").innerText = "❌ Video is still processing. Try again later.";
+                }
+            })
+            .catch(error => {
+                document.getElementById("status").innerText = "❌ Error retrieving video.";
+                console.error("Error:", error);
+            });
+        }
+    </script>
+</body>
+</html>
